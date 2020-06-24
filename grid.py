@@ -1,63 +1,85 @@
 
 import numpy as np
+from arrayLib import *
 
 class Grid:
-    def __init__(self, shape):
-        self.shape = shape
+    def __init__(self, xs):
+        self.xs     = xs
+        self.maxxs  = [np.max(x) for x in xs]
+        self.minxs  = [np.min(x) for x in xs]
+        self.ndim   = len(xs)
+        self.Xs     = np.meshgrid(*xs, indexing='ij')
+        self.shape  = self.Xs[0].shape
+        diffxs      = [diff1(x) for x in xs]
+        newshape    = lambda i: tuple([
+                            len(self.xs[i]) if j == i
+                            else 1 for j in range(self.ndim)
+                      ])
+        deltas      = [ diffxs[i].reshape(newshape(i))
+                            for i in range(self.ndim)
+                      ]
+        self.deltas = [ delta.flat[0] if np.allclose(
+                            0,
+                            (delta-delta.flat[0])/delta.flat[0] )
+                        else delta for delta in deltas
+                      ]
 
-    def emptyVariable(self):
-        return Variable(self, np.empty(self.shape))
+    def partial(self, var, axis):
+        return diff1(var, var.ndim-grid.ndim+axis) / self.deltas[axis]
 
-class Variable(np.ndarray):
-
-    def __onAxis(axis):
-        def decorator(func):
-            def wrapper(arr, *args, **kw):
-                alter = tuple(
-                    [axis] + [(0 if x == axis else x) for x in range(1, arr.ndim)]
-                )
-                ans = arr.transpose(alter)
-                ans = func(ans, *args, **kw)
-                return ans.transpose(alter)
-            return wrapper
-        return decorator
-
-    def partial(self, axis):
-        delta = self.grid.deltas[axis]
-        @Variable.__onAxis(axis)
-        def inner(arr, delta):
-            ans = self.grid.emptyVariable()
-            ans[1:-1] = (self[2:] - self[:-2]) / (2 * delta)
-            ans[0]    = (self[1]  - self[0]  ) / delta
-            ans[-1]   = (self[-1] - self[-2] ) / delta
-            return ans
-        return inner(self, delta)
-    
-    def partial2(self, axis):
-        delta = self.grid.deltas[axis]
-        @Variable.__onAxis(axis)
-        def inner(arr, delta):
-            ans = self.grid.emptyVariable()
-            ans[1:-1] = (self[2:] - 2*self[1:-1] + self[:-2]) / (delta ** 2)
-            ans[0]    = ans[1]  / 2
-            ans[-1]   = ans[-2] / 2
-            return ans
-        return inner(self, delta)
+    def partial2(self, var, axis):
+        return diff2(var, var.ndim-grid.ndim+axis) / self.deltas[axis]
 
     def laplacian(self):
         pass
 
+    def grad(self, var):
+        pass
+
+    def field(self, f):
+        return f(*self.Xs)
+
+    def emptyVariable(self):
+        return np.empty(self.shape)
+
+
+# to be abandoned
+class Variable(np.ndarray):
+
+    def partial(self, axis):
+        return self.grid.partial(self, axis)
+
+    def partial2(self, axis):
+        return self.grid.partial2(self, axis)
+
+    def laplacian(self):
+        return self.grid.laplacian(self)
+
+    def grad(self):
+        return Vector(
+            self.grid,
+            [self.partial(i) for i in self.grid.ndim]
+        )
+
     def __new__(cls, grid, array):
+        if grid.shape != array.shape:
+            raise Exception("Grid size dismatch.")
         obj = array.view(cls)
-        if grid.shape != obj.shape:
-            raise Exception("Grid dismatch")
         obj.grid = grid
         return obj
 
+
+class Vector:
+
+    def __init__(self, grid, vs):
+        if len(vs) != grid.ndim:
+            raise Exception("Grid dimension dismatch.")
+        self.grid = grid
+        self.vs = vs
+
 def main():
-    shp = (100, 100)
-    g = Grid(shp)
-    emp = np.empty(shp)
+    g = Grid([np.linspace(0, 5, 5), np.array([1,2,4,8])])
+    emp = np.empty(g.shape)
     x = Variable(g, emp)
     g.emptyVariable()
 
