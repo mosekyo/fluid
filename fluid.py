@@ -88,50 +88,34 @@ def step(status, tendency, dt):
 def eulerMethod(x0, ext, f, dt):
     return step(x0, f(x0, ext), dt)
 
-def gauss(x, mu, sigma):
-    return 1./(np.sqrt(2*np.pi) * sigma) * np.exp(
-        - (x - mu) ** 2 / (2 * sigma ** 2)
-    )
-
 def main():
-    global dx, dy, nu
-    p00 = 1.013e5
-    xg = 400
-    yg = 400
+    global dx, dy
+    shp = (xg, yg) = (200, 200)
     H = 200
     L = 300
-    nu = 1.5e-3
     dx = L / xg
     dy = H / yg
     dt = 0.00001
-    time = 100
-    epochs = int(time / dt)
+    (y, x) = np.meshgrid(
+        np.linspace(0, H, yg),
+        np.linspace(0, L, xg)
+    )
+    p00 = 1.013e5
     T0 = 291
-    shp = (xg, yg)
-    v = np.zeros(shp)
     u = np.zeros(shp)
+    v = np.zeros(shp)
     T = T0 * np.ones(shp)
-    z0 = np.linspace(0, H, yg)
-    x0 = np.linspace(0, L, xg)
-    (z, x) = np.meshgrid(z0, x0)
-    pz = p00 * np.exp(-g*(z + H/20 * np.sin(2*np.pi*(x/L+0.3*z/H)))/(R * T0))
-    pz = p00 * (1 + 0.001 * np.sin(2*np.pi*(x/L+0.4*z/H)))
-    pz = p00 * (1 + gauss(x, L/2, L/40) * gauss(z, H/2, L/40) )
-    p = pz
+    def gauss(x, mu, sigma):
+        return 1./(np.sqrt(2*np.pi) * sigma) * np.exp(
+            - (x - mu) ** 2 / (2 * sigma ** 2)
+        )
+    p = p00 * (1 + gauss(x, L/2, L/40) * gauss(y, H/2, L/40) )
     rho = p / (R * T)
-    extQ = np.exp(-10*z/H) * np.ones(shp) * (gauss(x, L/3, L/10) - gauss(x, 2*L/3, L/10))
     status = (u, v, rho, p, T)
     exterior = (0, 0, 0)
-    def set(ax, name):
-        ax.set_title(name)
-        ax.axes.get_xaxis().set_ticks([])
-        ax.axes.get_yaxis().set_ticks([])
-    for i in range(epochs+1):
-        status = eulerMethod(status, exterior, navierStokes, dt)
-        if i % 1000 == 0:
-            file = open("dmp/%d.pydmp" % i, 'wb')
-            pickle.dump(status, file)
-            file.close()
+    for i in range(200000 + 1):
+        status = (u, v, rho, p, T) = eulerMethod(status, exterior, navierStokes, dt)
+        # plot graph codes ...
 
 
 if __name__ == '__main__':
