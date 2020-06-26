@@ -1,6 +1,6 @@
 
 import numpy as np
-from arrayLib import *
+from arraylib import *
 
 def wrapArray(func):
     def wrapper(self, *args, **kw):
@@ -12,6 +12,41 @@ def wrapArray(func):
     return wrapper
 
 class Grid:
+    '''
+    Class for n-dimensional rectangular descrete grids, which can be
+    used to create variable fields based on it and do finite
+    differentiations with ndarray of the same shape of the grid.
+
+
+    Parameters
+    ----------
+
+    xs : a series of 1-dimensional np.ndarray
+
+
+    Attributes
+    ----------
+    
+    ndim : int
+        Spatial dimension of the grid.
+    shape : tuple of int
+        Numbers of points of each dimension.
+    xs : a list of 1-dimensional np.ndarray
+        Coordinate value of the points in each axis.
+    minxs : a list of array.dtype
+        Minimum coordinates of each axis.
+    maxxs : a list of array.dtype
+        Maximun coordinates of each axis
+    Xs : a list of np.ndarray of the same shape as the grid's
+        Mesh grid version of `xs`.
+    deltas : a list of pseudo-1-dimensional np.ndarray object
+             that can be broadcast into the grid's shape
+        Coordinate differentiations of each axis, used to calculate
+        finite differentiations of a variable.
+        Elements in `deltas` will be simplified into a single number
+        if the coordinates are in equidistances.
+    '''
+
     def __init__(self, *xs):
         self.xs     = [*xs]
         self.maxxs  = [np.max(x) for x in xs]
@@ -47,9 +82,9 @@ class Grid:
         # arr.ndim - self.ndim <=> self.rankOf(arr)
         return diff1(arr, arr.ndim-self.ndim+axis) / self.deltas[axis]
 
-    def partial2(self, arr, axis):
+    def partial2s(self, arr, axis):
         # arr.ndim - self.ndim <=> self.rankOf(arr)
-        return diff2(arr, arr.ndim-self.ndim+axis) / self.deltas[axis]
+        return diff2s(arr, arr.ndim-self.ndim+axis) / self.deltas[axis]
 
     def partial2t(self, arr, ax1, ax2):
         # arr.ndim - self.ndim <=> self.rankOf(arr)
@@ -59,7 +94,7 @@ class Grid:
                      ) / (self.deltas[ax1] * self.deltas[ax2])
 
     def laplacian(self, arr):
-        return sum([ self.partial2(arr,axis)
+        return sum([ self.partial2s(arr,axis)
                          for axis in range(self.ndim)])
 
     def grad(self, arr):
@@ -131,6 +166,32 @@ class MetricGrid(Grid):
 
 
 class Variable(np.ndarray):
+    '''
+    Class for tensor field on a grid based on `numpy.ndarray`.
+    A rank-r tensor over a n-dimensional grid is represented by
+    a (m+n) dimensional ndarray.
+    Suppose the grid is of shape (L1, L2, ..., Ln),
+    then the ndarray is of shape (n, n, ..., n, L1, L2, ..., Ln)
+    where spatial dimensions are put at the end for the sake of
+    continuity in memory use in order to improve efficiency.
+
+    Parameters
+    ----------
+
+    grid : Grid object
+        Underlying grid.
+    array : numpy.ndarray object
+        The variable data itself.
+
+    Attributes
+    ----------
+
+    grid : Grid object
+        Underlying grid.
+    rank : int
+        Rank of the tensor variable, equals to `array.ndim-grid.ndim`
+
+    '''
 
     def __new__(cls, grid, array):
         #if grid.shape != array.shape:
@@ -150,32 +211,21 @@ class Variable(np.ndarray):
         return ans
 
     @wrapArray
-    def partial(grid, arr, axis):
-        return grid.partial(arr, axis)
-
+    def partial  (grid, arr, axis): return grid.partial  (arr, axis)
     @wrapArray
-    def partial2(grid, arr, axis):
-        return grid.partial2(arr, axis)
-
+    def partial2s(grid, arr, axis): return grid.partial2s(arr, axis)
     @wrapArray
-    def partial2t(grid, arr, ax1, ax2):
-        return grid.partial2t(arr, ax1, ax2)
-
+    def partial2t(grid, arr,  *ax): return grid.partial2t(arr,  *ax)
     @wrapArray
-    def grad(grid, arr):
-        return grid.grad(arr)
-
+    def grad     (grid, arr):       return grid.grad     (arr)
     @wrapArray
-    def div(grid, arr):
-        return grid.div(arr)
-
+    def div      (grid, arr):       return grid.div      (arr)
     @wrapArray
-    def laplacian(grid, arr):
-        return grid.laplacian(arr)
+    def laplacian(grid, arr):       return grid.laplacian(arr)
 
 
 def main():
-    global z
+    global z, g
     n = 4
     g = Grid(np.linspace(0,1,n), np.linspace(0,1,n))
     x = Variable(g, np.random.randn(n,n))

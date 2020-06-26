@@ -2,6 +2,22 @@
 import numpy as np
 
 def onAxis(axis):
+    '''
+    Decorate functions that take in a ndarray and return the modified
+    version of the array, where only the first axis is used to describe
+    the modification. This decorator makes the function to act on
+    any axis of the array, where 2 transposes are used.
+
+    Parameters
+    ----------
+    axis : int
+        The axis you want to act on.
+
+    Returns
+    -------
+    decorator : the function decorator
+
+    '''
     def decorator(func):
         def wrapper(arr, *args, **kw):
             if axis == 0:
@@ -18,6 +34,23 @@ def onAxis(axis):
     return decorator
 
 def onAxes(*axes):
+    '''
+    Multiple axes version of `onAxis` decorator.
+
+    Parameters
+    ----------
+    axes : a list of int
+        The axes you want to act on.
+
+    Returns
+    -------
+    decorator : the function decorator
+
+    See Also
+    --------
+    onAxis
+
+    '''
     def decorator(func):
         def wrapper(arr, *args, **kw):
             perm = [*axes] + [i for i in arr.ndims if i not in axes]
@@ -38,7 +71,7 @@ def diff1(arr, axis=0):
         return ans
     return inner(arr)
 
-def diff2(arr, axis=0):
+def diff2s(arr, axis=0):
     @onAxis(axis)
     def inner(arr):
         ans = np.empty(arr.shape)
